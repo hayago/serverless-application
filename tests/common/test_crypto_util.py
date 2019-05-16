@@ -6,6 +6,47 @@ from user_util import UserUtil
 from crypto_util import CryptoUtil
 from unittest import TestCase
 from tests_util import TestsUtil
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+
+PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEAxVGcUtXwqzv1F0XWBDMOUwcUTCqLofgVsiXrCSIrltU5BQQU
+XOACdbECXiJUubP4l3KuIQCKeoGF283vU4POQGkF9dryJY2exo2lNvMiN62vcy3x
+nBq8SWFweCNpFUzpZEpSCRMsjtOQN8SxNC/mXeIAmtiIAqWTXCaEtIMjc+S4EDTM
+R2ff+zo+VclgxuxeXjUEZXeAHVkXWP2Ejpst+uPPa4njt07QLp1oMq9wR61kX8sL
+Sqnk8AZ521IKumYR75tPdHoEf2uC14MGQ2tqD9GTjWWtjn1D88qUrcUREOoc/m0G
+n3cX7NbIqMchOFIMdvh8B4wXMx8kfGF9GOmezwIDAQABAoIBAQCgbjNgsmvEfbJP
+ostYjL53yUi6iNkQ7umM+AF6Ypr4PxLmPiPkQ4occLgRG26xsl9Lm8VyNcNhyY+x
+YGXXDFKU0g8zjznUSKowm5gZ7mMCzCfbyR4pox81tpDATWIyHF+i2D6M/Fb9JYyb
+m0PMv6lY6dk+DRHAvSjsArFhJ0KbBYorndjlXBwvZqfpDhG8f/jWgsgxyRhHve6o
+Nd+FQk271bObh3NGc3aZNuGNeYAXoEqDkHt6i5Xs3buTZnzcBhgHz+fsuoZy2Yoo
+Yz70cK4w6BQXRn3g3iILXliAiVX6f04fEg8f3ZgvyRh2a0paQDNHPMYxuIozq3Mv
+Mmkqp9aJAoGBAP8gSn57utVv1s3Fmf9idxbZnM8T4q8oTeOES+dxd/kXVFAP+IF5
+GPkJyPjCn29bo7dEii/IxZDmfP6WlLXRXyUzLRpOxv95Q+1YtMcDbHVOR0jc/LZH
+TAyxCGHSklg3pGowo6ZAnKNnKz5pi1bAH5bDWQMYNWS4aoDMaGF3ekWTAoGBAMX+
+oYK6ntY/I6kQViXUgbTkPJX6w+dE98zx5ZzPfYr7dcmKZUpT0RaLLfJDbggdEHu5
+I4u+0MvbDT+Xznon7QYzF/JapVrty+5nsdx+Qd46+oMJpK7td1ENjaT6vBS0NwSn
+YTeU+I8aUfsahlEvkSkgtJ58+OgubvF+3+Dm4IdVAoGBANE1u6DI+cb49V68QbJp
+HltAjBRLrEISfPyrikr6g3ViKiOVVSVnFpFx8rn7bx60OSaaL+9LZqeSOsHS3ZPT
+Y4Bv3PaLzyfEW22Qpn3kUtZHILGhdiJLiROHQOZm9Ncemdbyl+BHb6uXeKCvkDHN
+TpolCyM8gNxdVgjUlmwGu9+9AoGAYqIew4lEZ2a81RQWVnIuy3aH2A88WJG7AJXg
+1OVonTv3yZbwLr7igmCDWxTMU65m77ujQZKlYWiWiP+PFLufEF+TpmARz+J2nSV7
+LWSYW6T19yFusNYLgo1F6tIdsBK29dKMU6waxu9Nt9HW58rSfbKVR/7p4ICBND0I
+OnnJkKECgYEApYJFS8l+A+OpJIOvPeP0vqK/wIdwWjfgINaMv42fAkieGjC2+m3X
+S44k6XXRMKucbx48XwzT0sWoG7BQL7QkDL+KuHAyCD4HdIvCgG2hlryH4hEX97Xj
+OM7gH4lOBPAz3Xp5dS6jnKQT1OxPtYdn6VsN2yashViWkehB1AkTJjU=
+-----END RSA PRIVATE KEY-----
+"""
+
+PUBLIC_KEY = """-----BEGIN RSA PUBLIC KEY-----
+MIIBCgKCAQEAxVGcUtXwqzv1F0XWBDMOUwcUTCqLofgVsiXrCSIrltU5BQQUXOAC
+dbECXiJUubP4l3KuIQCKeoGF283vU4POQGkF9dryJY2exo2lNvMiN62vcy3xnBq8
+SWFweCNpFUzpZEpSCRMsjtOQN8SxNC/mXeIAmtiIAqWTXCaEtIMjc+S4EDTMR2ff
++zo+VclgxuxeXjUEZXeAHVkXWP2Ejpst+uPPa4njt07QLp1oMq9wR61kX8sLSqnk
+8AZ521IKumYR75tPdHoEf2uC14MGQ2tqD9GTjWWtjn1D88qUrcUREOoc/m0Gn3cX
+7NbIqMchOFIMdvh8B4wXMx8kfGF9GOmezwIDAQAB
+-----END RSA PUBLIC KEY-----
+"""
 
 
 class TestCryptoUtil(TestCase):
@@ -47,3 +88,15 @@ class TestCryptoUtil(TestCase):
             'user_id'
         )
         self.assertEqual(password, 'nNU8E9E6OSe9tRQn')
+
+    def test_rsa_decrypt_base64_text_ok(self):
+        text = "abcdef"
+
+        # 暗号化
+        pkey = RSA.importKey(PUBLIC_KEY)
+        encrypted_data = PKCS1_OAEP.new(pkey).encrypt(text.encode())
+        encrypted_base64_text = base64.b64encode(encrypted_data).decode()
+
+        # 復号化
+        decrypted_text = CryptoUtil.rsa_decrypt_base64_text(encrypted_base64_text, PRIVATE_KEY)
+        self.assertEqual(decrypted_text, text)
