@@ -6,6 +6,7 @@ import json
 from decimal import Decimal
 from db_util import DBUtil
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 from private_chain_util import PrivateChainUtil
 from time_util import TimeUtil
 from jsonschema import validate
@@ -13,6 +14,7 @@ from lambda_base import LambdaBase
 from jsonschema import ValidationError
 from user_util import UserUtil
 from exceptions import SendTransactionError, ReceiptError
+from crypto_util import CryptoUtil
 
 
 class MeWalletTokenSend(LambdaBase):
@@ -23,8 +25,10 @@ class MeWalletTokenSend(LambdaBase):
             'properties': {
                 'recipient_eth_address': settings.parameters['eth_address'],
                 'send_value': settings.parameters['token_send_value'],
+                'encrypted_access_token': settings.parameters['encrypted_access_token'],
+                'encrypted_pin_code': settings.parameters['encrypted_pin_code']
             },
-            'required': ['recipient_eth_address', 'send_value']
+            'required': ['recipient_eth_address', 'send_value', 'encrypted_access_token', 'encrypted_pin_code']
         }
 
     def validate_params(self):
@@ -35,6 +39,10 @@ class MeWalletTokenSend(LambdaBase):
             self.params['send_value'] = int(self.params['send_value'])
         except ValueError:
             raise ValidationError('send_value must be numeric')
+
+        # pinコードを検証
+        self.__validate_encrypted_pin_code(self.params['encrypted_access_token'], self.params['encrypted_pin_code'])
+
         validate(self.params, self.get_schema())
 
     def exec_main_proc(self):
@@ -196,4 +204,35 @@ class MeWalletTokenSend(LambdaBase):
             ExpressionAttributeValues={
                 ':send_status': send_status,
             }
+        )
+
+    def __validate_encrypted_pin_code(self, encrypted_access_token, encrypted_pin_code):
+        private_key = os.environ['REQUEST_PARAM_DECRYPTION_PRIVATE_KEY'].replace('\\n', '\n')
+
+        try:
+            access_token = CryptoUtil.rsa_decrypt_base64_text(encrypted_access_token, private_key)
+            pin_code = CryptoUtil.rsa_decrypt_base64_text(encrypted_pin_code, private_key)
+        except Exception:
+            raise ValidationError('Encryption format is invalid')
+
+        try:
+            self.__verify_user_attribute(access_token, pin_code)
+        except ClientError as client_error:
+            code = client_error.response['Error']['Code']
+            if code == 'NotAuthorizedException':
+                raise ValidationError('Access token is invalid')
+            elif code == 'CodeMismatchException':
+                raise ValidationError('Pin code is invalid')
+            elif code == 'ExpiredCodeException':
+                raise ValidationError('Pin code is expired')
+            elif code == 'LimitExceededException':
+                raise ValidationError('Verification limit is exceeded')
+            else:
+                raise client_error
+
+    def __verify_user_attribute(self, access_token, pin_code):
+        self.cognito.verify_user_attribute(
+            AccessToken=access_token,
+            AttributeName='phone_number',
+            Code=pin_code
         )

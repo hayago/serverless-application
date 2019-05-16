@@ -204,6 +204,12 @@ parameters = {
     'eth_address': {
         'type': 'string',
         'pattern': r'^0x[a-fA-F0-9]{40}$'
+    },
+    'encrypted_access_token': {
+        'type': 'string'
+    },
+    'encrypted_pin_code': {
+        'type': 'string'
     }
 }
 

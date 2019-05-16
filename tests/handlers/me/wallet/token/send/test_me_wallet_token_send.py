@@ -8,6 +8,50 @@ from me_wallet_token_send import MeWalletTokenSend
 from unittest.mock import patch, MagicMock
 from tests_util import TestsUtil
 from exceptions import SendTransactionError, ReceiptError
+from botocore.exceptions import ClientError
+
+REQUEST_PARAM_DECRYPTION_PRIVATE_KEY = '''-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEAxVGcUtXwqzv1F0XWBDMOUwcUTCqLofgVsiXrCSIrltU5BQQU
+XOACdbECXiJUubP4l3KuIQCKeoGF283vU4POQGkF9dryJY2exo2lNvMiN62vcy3x
+nBq8SWFweCNpFUzpZEpSCRMsjtOQN8SxNC/mXeIAmtiIAqWTXCaEtIMjc+S4EDTM
+R2ff+zo+VclgxuxeXjUEZXeAHVkXWP2Ejpst+uPPa4njt07QLp1oMq9wR61kX8sL
+Sqnk8AZ521IKumYR75tPdHoEf2uC14MGQ2tqD9GTjWWtjn1D88qUrcUREOoc/m0G
+n3cX7NbIqMchOFIMdvh8B4wXMx8kfGF9GOmezwIDAQABAoIBAQCgbjNgsmvEfbJP
+ostYjL53yUi6iNkQ7umM+AF6Ypr4PxLmPiPkQ4occLgRG26xsl9Lm8VyNcNhyY+x
+YGXXDFKU0g8zjznUSKowm5gZ7mMCzCfbyR4pox81tpDATWIyHF+i2D6M/Fb9JYyb
+m0PMv6lY6dk+DRHAvSjsArFhJ0KbBYorndjlXBwvZqfpDhG8f/jWgsgxyRhHve6o
+Nd+FQk271bObh3NGc3aZNuGNeYAXoEqDkHt6i5Xs3buTZnzcBhgHz+fsuoZy2Yoo
+Yz70cK4w6BQXRn3g3iILXliAiVX6f04fEg8f3ZgvyRh2a0paQDNHPMYxuIozq3Mv
+Mmkqp9aJAoGBAP8gSn57utVv1s3Fmf9idxbZnM8T4q8oTeOES+dxd/kXVFAP+IF5
+GPkJyPjCn29bo7dEii/IxZDmfP6WlLXRXyUzLRpOxv95Q+1YtMcDbHVOR0jc/LZH
+TAyxCGHSklg3pGowo6ZAnKNnKz5pi1bAH5bDWQMYNWS4aoDMaGF3ekWTAoGBAMX+
+oYK6ntY/I6kQViXUgbTkPJX6w+dE98zx5ZzPfYr7dcmKZUpT0RaLLfJDbggdEHu5
+I4u+0MvbDT+Xznon7QYzF/JapVrty+5nsdx+Qd46+oMJpK7td1ENjaT6vBS0NwSn
+YTeU+I8aUfsahlEvkSkgtJ58+OgubvF+3+Dm4IdVAoGBANE1u6DI+cb49V68QbJp
+HltAjBRLrEISfPyrikr6g3ViKiOVVSVnFpFx8rn7bx60OSaaL+9LZqeSOsHS3ZPT
+Y4Bv3PaLzyfEW22Qpn3kUtZHILGhdiJLiROHQOZm9Ncemdbyl+BHb6uXeKCvkDHN
+TpolCyM8gNxdVgjUlmwGu9+9AoGAYqIew4lEZ2a81RQWVnIuy3aH2A88WJG7AJXg
+1OVonTv3yZbwLr7igmCDWxTMU65m77ujQZKlYWiWiP+PFLufEF+TpmARz+J2nSV7
+LWSYW6T19yFusNYLgo1F6tIdsBK29dKMU6waxu9Nt9HW58rSfbKVR/7p4ICBND0I
+OnnJkKECgYEApYJFS8l+A+OpJIOvPeP0vqK/wIdwWjfgINaMv42fAkieGjC2+m3X
+S44k6XXRMKucbx48XwzT0sWoG7BQL7QkDL+KuHAyCD4HdIvCgG2hlryH4hEX97Xj
+OM7gH4lOBPAz3Xp5dS6jnKQT1OxPtYdn6VsN2yashViWkehB1AkTJjU=
+-----END RSA PRIVATE KEY-----
+'''
+
+ENCRYPTED_ACCESS_TOKEN = (
+    'UoxrMqUsGA9A7XZOINa9AXrrd6ssLff1GByeVSE+ARfYEnjqpxq0VbveLD9CvLBFbd4lvHAm0k4C5ckB9HGQlHCfNW2ItGwLO3u'
+    '0jQK7jE4laAZgUGMCiNaz7G7hackBMLB3YHgAwu+mT13Cz9FHiURgcQ1nbA8gHkSYmVBw5TUoTc9iGRGJubTy9CdGI3pRl1WrrY'
+    'M+0DxSbr3hEOWDlQ0l4lu0dxhfTXoLj2+5GlRzsbx8q3Vq7oBU8UtZv/gt6vDHcwFOtaG3cQsNNiXIa23z1ySH5BqdMN+DTDFdJ'
+    'Fcwx7z8uaQeDhYwuplmMG5ysOxDGUD0KrowB1FkXS0Mmg=='
+)
+
+ENCRYPTED_PIN_CODE = (
+    'M9bFIzvx94FspPqNsws+0xTo9tUyJeNgrdnhmu6QF1SjsBGLps3efyLUYpoEROMnUvLI7FA66Es2QUCJtYDxtsXi0Beta3Cg6wL'
+    'f0gD5bN2NWZhekfnN46UTyySEBY6R73v0cYRz60+hv416OiRckkZbEAxm6IOipt7xN9QSoOTCUrhdbPzP3Qy9/p5K6gicQ9y/01'
+    'A9h6wXN4E2SE6U9E+tUaL5Pk1hl7a8pGrk/iN0Auc+CdD6jVqzuOgljznod3u0ZfFoUOSmNujzaxJFiGO6va6ZQJLUQ9v7DLu8X'
+    'ReMo/JXsm9bMLBtg+J9zd/6VQ649TIZiUJqWN84EqJaiA=='
+)
 
 
 class TestMeWalletTokenSend(TestCase):
@@ -22,6 +66,7 @@ class TestMeWalletTokenSend(TestCase):
         TestsUtil.delete_all_tables(self.dynamodb)
         TestsUtil.create_table(self.dynamodb, os.environ['TOKEN_SEND_TABLE_NAME'], [])
         os.environ['DAILY_LIMIT_TOKEN_SEND_VALUE'] = '10000000000000000000000'
+        os.environ['REQUEST_PARAM_DECRYPTION_PRIVATE_KEY'] = REQUEST_PARAM_DECRYPTION_PRIVATE_KEY
 
     def tearDown(self):
         TestsUtil.delete_all_tables(self.dynamodb)
@@ -34,11 +79,13 @@ class TestMeWalletTokenSend(TestCase):
 
     @patch('time_util.TimeUtil.generate_sort_key', MagicMock(return_value=1520150552000003))
     @patch('time.time', MagicMock(return_value=1520150552.000003))
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ok(self):
         with patch('private_chain_util.PrivateChainUtil.send_transaction') \
             as mock_send_transaction, \
             patch('private_chain_util.PrivateChainUtil.is_transaction_completed') \
                 as mock_is_transaction_completed:
+
             # mock の初期化
             return_allowance = "0x0"
             return_get_transaction_count = "0x0"
@@ -59,7 +106,9 @@ class TestMeWalletTokenSend(TestCase):
             event = {
                 'body': {
                     'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                    'send_value': target_token_send_value
+                    'send_value': target_token_send_value,
+                    'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                    'encrypted_pin_code': ENCRYPTED_PIN_CODE
                 },
                 'requestContext': {
                     'authorizer': {
@@ -144,6 +193,7 @@ class TestMeWalletTokenSend(TestCase):
 
     @patch('time_util.TimeUtil.generate_sort_key', MagicMock(return_value=1520150552000003))
     @patch('time.time', MagicMock(return_value=1520150552.000003))
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ok_exists_allowance_with_status_doing(self):
         with patch('private_chain_util.PrivateChainUtil.send_transaction') \
             as mock_send_transaction, \
@@ -171,7 +221,9 @@ class TestMeWalletTokenSend(TestCase):
             event = {
                 'body': {
                     'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                    'send_value': target_token_send_value
+                    'send_value': target_token_send_value,
+                    'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                    'encrypted_pin_code': ENCRYPTED_PIN_CODE
                 },
                 'requestContext': {
                     'authorizer': {
@@ -267,6 +319,7 @@ class TestMeWalletTokenSend(TestCase):
 
     @patch('time_util.TimeUtil.generate_sort_key', MagicMock(return_value=1520150552000100))
     @patch('time.time', MagicMock(return_value=1520150552.000100))
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ok_exists_token_send_info_with_fail_data(self):
         # 実行前データを作成
         user_id = 'user_01'
@@ -365,7 +418,9 @@ class TestMeWalletTokenSend(TestCase):
             event = {
                 'body': {
                     'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                    'send_value': target_token_send_value
+                    'send_value': target_token_send_value,
+                    'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                    'encrypted_pin_code': ENCRYPTED_PIN_CODE
                 },
                 'requestContext': {
                     'authorizer': {
@@ -462,6 +517,7 @@ class TestMeWalletTokenSend(TestCase):
 
     @patch('time_util.TimeUtil.generate_sort_key', MagicMock(return_value=1520150552000100))
     @patch('time.time', MagicMock(return_value=1520150552.000100))
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_over_limit(self):
         # 実行前データを作成
         user_id = 'user_01'
@@ -527,7 +583,9 @@ class TestMeWalletTokenSend(TestCase):
         event = {
             'body': {
                 'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -551,6 +609,7 @@ class TestMeWalletTokenSend(TestCase):
 
     @patch('time_util.TimeUtil.generate_sort_key', MagicMock(return_value=1520150552000003))
     @patch('time.time', MagicMock(return_value=1520150552.000003))
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_with_status_fail_at_SendTransactionError(self):
         with patch('private_chain_util.PrivateChainUtil.send_transaction') \
             as mock_send_transaction, \
@@ -575,7 +634,9 @@ class TestMeWalletTokenSend(TestCase):
             event = {
                 'body': {
                     'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                    'send_value': target_token_send_value
+                    'send_value': target_token_send_value,
+                    'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                    'encrypted_pin_code': ENCRYPTED_PIN_CODE
                 },
                 'requestContext': {
                     'authorizer': {
@@ -612,6 +673,7 @@ class TestMeWalletTokenSend(TestCase):
 
     @patch('time_util.TimeUtil.generate_sort_key', MagicMock(return_value=1520150552000003))
     @patch('time.time', MagicMock(return_value=1520150552.000003))
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_with_status_fail_at_ReceiptError(self):
         with patch('private_chain_util.PrivateChainUtil.send_transaction') \
             as mock_send_transaction, \
@@ -636,7 +698,9 @@ class TestMeWalletTokenSend(TestCase):
             event = {
                 'body': {
                     'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                    'send_value': target_token_send_value
+                    'send_value': target_token_send_value,
+                    'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                    'encrypted_pin_code': ENCRYPTED_PIN_CODE
                 },
                 'requestContext': {
                     'authorizer': {
@@ -671,12 +735,15 @@ class TestMeWalletTokenSend(TestCase):
             }
             self.assertEqual(expected_token_send, token_send_itmes[0])
 
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_less_than_min_value(self):
         target_token_send_value = str(settings.parameters['token_send_value']['minimum'] - 1)
         event = {
             'body': {
                 'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -699,12 +766,15 @@ class TestMeWalletTokenSend(TestCase):
         items = token_send_table_name.scan()['Items']
         self.assertEqual(len(items), 0)
 
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_minus_value(self):
         target_token_send_value = '-1'
         event = {
             'body': {
                 'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -727,12 +797,15 @@ class TestMeWalletTokenSend(TestCase):
         items = token_send_table_name.scan()['Items']
         self.assertEqual(len(items), 0)
 
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_greater_than_max_value(self):
         target_token_send_value = str(settings.parameters['token_send_value']['maximum'] + 1)
         event = {
             'body': {
                 'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -755,12 +828,15 @@ class TestMeWalletTokenSend(TestCase):
         items = token_send_table_name.scan()['Items']
         self.assertEqual(len(items), 0)
 
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_not_number_for_value(self):
         target_token_send_value = 'aaaaaaaaaaaaa'
         event = {
             'body': {
                 'recipient_eth_address': '0x2000000000000000000000000000000000000000',
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -783,12 +859,15 @@ class TestMeWalletTokenSend(TestCase):
         items = token_send_table_name.scan()['Items']
         self.assertEqual(len(items), 0)
 
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_not_string_for_eth_address(self):
         target_token_send_value = str(settings.parameters['token_send_value']['minimum'])
         event = {
             'body': {
                 'recipient_eth_address': 0x2000000000000000000000000000000000000000,
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -811,12 +890,15 @@ class TestMeWalletTokenSend(TestCase):
         items = token_send_table_name.scan()['Items']
         self.assertEqual(len(items), 0)
 
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
     def test_main_ng_not_match_pattern_for_eth_address(self):
         target_token_send_value = str(settings.parameters['token_send_value']['minimum'])
         event = {
             'body': {
                 'recipient_eth_address': '0x200000000000000000000000000000000000ZZZZ',
-                'send_value': target_token_send_value
+                'send_value': target_token_send_value,
+                'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                'encrypted_pin_code': ENCRYPTED_PIN_CODE
             },
             'requestContext': {
                 'authorizer': {
@@ -838,3 +920,80 @@ class TestMeWalletTokenSend(TestCase):
         token_send_table_name = self.dynamodb.Table(os.environ['TOKEN_SEND_TABLE_NAME'])
         items = token_send_table_name.scan()['Items']
         self.assertEqual(len(items), 0)
+
+    @patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute', MagicMock())
+    def test_main_ng_invalid_encryption_format(self):
+        target_token_send_value = str(settings.parameters['token_send_value']['minimum'])
+        event = {
+            'body': {
+                'recipient_eth_address': '0x2000000000000000000000000000000000000000',
+                'send_value': target_token_send_value,
+                'encrypted_access_token': "xxxxx",
+                'encrypted_pin_code': "yyyyy"
+            },
+            'requestContext': {
+                'authorizer': {
+                    'claims': {
+                        'cognito:username': 'user_01',
+                        'custom:private_eth_address': '0x3000000000000000000000000000000000000000',
+                        'phone_number_verified': 'true',
+                        'email_verified': 'true'
+                    }
+                }
+            }
+        }
+        event['body'] = json.dumps(event['body'])
+
+        # テスト対象実施
+        response = MeWalletTokenSend(event, {}, self.dynamodb, cognito=None).main()
+        self.assertEqual(response['statusCode'], 400)
+        self.assertIsNotNone(re.match('{"message": "Invalid parameter: Encryption format is invalid"}', response['body']))
+
+    def test_main_ng_invalid_encrypted_pin_code(self):
+        with patch('me_wallet_token_send.MeWalletTokenSend._MeWalletTokenSend__verify_user_attribute') \
+                as mock_verify_user_attribute:
+            target_token_send_value = str(settings.parameters['token_send_value']['minimum'])
+            event = {
+                'body': {
+                    'recipient_eth_address': '0x2000000000000000000000000000000000000000',
+                    'send_value': target_token_send_value,
+                    'encrypted_access_token': ENCRYPTED_ACCESS_TOKEN,
+                    'encrypted_pin_code': ENCRYPTED_PIN_CODE
+                },
+                'requestContext': {
+                    'authorizer': {
+                        'claims': {
+                            'cognito:username': 'user_01',
+                            'custom:private_eth_address': '0x3000000000000000000000000000000000000000',
+                            'phone_number_verified': 'true',
+                            'email_verified': 'true'
+                        }
+                    }
+                }
+            }
+            event['body'] = json.dumps(event['body'])
+
+            # テスト対象実施
+            mock_verify_user_attribute.side_effect = ClientError({'Error': {'Code': 'NotAuthorizedException'}}, '')
+            response = MeWalletTokenSend(event, {}, self.dynamodb, cognito=None).main()
+            self.assertEqual(response['statusCode'], 400)
+            self.assertIsNotNone(re.match('{"message": "Invalid parameter: Access token is invalid"}', response['body']))
+
+            mock_verify_user_attribute.side_effect = ClientError({'Error': {'Code': 'CodeMismatchException'}}, '')
+            response = MeWalletTokenSend(event, {}, self.dynamodb, cognito=None).main()
+            self.assertEqual(response['statusCode'], 400)
+            self.assertIsNotNone(re.match('{"message": "Invalid parameter: Pin code is invalid"}', response['body']))
+
+            mock_verify_user_attribute.side_effect = ClientError({'Error': {'Code': 'ExpiredCodeException'}}, '')
+            response = MeWalletTokenSend(event, {}, self.dynamodb, cognito=None).main()
+            self.assertEqual(response['statusCode'], 400)
+            self.assertIsNotNone(re.match('{"message": "Invalid parameter: Pin code is expired"}', response['body']))
+
+            mock_verify_user_attribute.side_effect = ClientError({'Error': {'Code': 'LimitExceededException'}}, '')
+            response = MeWalletTokenSend(event, {}, self.dynamodb, cognito=None).main()
+            self.assertEqual(response['statusCode'], 400)
+            self.assertIsNotNone(re.match('{"message": "Invalid parameter: Verification limit is exceeded"}', response['body']))
+
+            mock_verify_user_attribute.side_effect = ClientError({'Error': {'Code': 'Other'}}, '')
+            response = MeWalletTokenSend(event, {}, self.dynamodb, cognito=None).main()
+            self.assertEqual(response['statusCode'], 500)

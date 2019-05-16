@@ -277,6 +277,10 @@ Resources:
                 type: string
               send_value:
                 type: string
+              encrypted_access_token:
+                type: string
+              encrypted_pin_code:
+                type: string
           MeExternalProviderUserCreate:
             type: object
             properties:
